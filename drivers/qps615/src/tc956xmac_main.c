@@ -221,6 +221,11 @@
 #define EEPROM_READ_BYTE	300
 #define EEPROM_WRITE_OFFSET_BYTE	2
 
+typedef enum {
+	MAC_SRC_CONFIG_FILE = 0x0,
+	MAC_SRC_PLATFORM_EEPROM = 0x1,
+} MacSrcType_t;
+
 #ifdef TC956X_DYNAMIC_LOAD_CBS
 int prev_speed;
 #endif
@@ -320,9 +325,7 @@ static void tc956xmac_init_fs(struct net_device *dev);
 static void tc956xmac_exit_fs(struct net_device *dev);
 #endif
 #endif /* TC956X_SRIOV_PF */
-#ifdef TC956X_5_G_2_5_G_EEE_SUPPORT
-extern int phy_ethtool_set_eee_2p5(struct phy_device *phydev, struct ethtool_eee *data);
-#endif
+
 #ifdef TC956X_SRIOV_PF
 extern struct tx956x_shrd_mem tx956x_pci_shrd_mem[TC956X_TOT_CASCADE_DEV];
 
@@ -3079,7 +3082,11 @@ static void tc956xmac_mac_pcs_get_state(struct phylink_config *config,
 	if (reg_value & XGMAC_C37_AN_COMPL) {/*check if AN 37 is complete CL37_ANCMPLT_INTR*/
 		KPRINT_INFO("AN clause 37 completed");
 		if ((priv->plat->interface == PHY_INTERFACE_MODE_USXGMII) ||
-		   (priv->plat->interface == PHY_INTERFACE_MODE_10GKR)) {
+		   (priv->plat->interface == PHY_INTERFACE_MODE_10GKR)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 6, 0) /* TC956X_Host_Driver-industrial_limited_tested_20241025_V_04-00-01-QPSSW-216.patch */
+			|| (priv->plat->interface == PHY_INTERFACE_MODE_10GBASER)
+#endif
+			) {
 			if (reg_value & XGMAC_USXG_AN_STS_LINK_MASK) {/*check link status*/
 				state->link = 1;
 				KPRINT_INFO("XPCS USXGMII link up");
@@ -3140,7 +3147,11 @@ static int tc956xmac_mac_link_state(struct phylink_config *config,
 	if (reg_value & XGMAC_C37_AN_COMPL) {/*check if AN 37 is complete CL37_ANCMPLT_INTR*/
 		KPRINT_INFO("AN clause 37 completed");
 		if ((priv->plat->interface == PHY_INTERFACE_MODE_USXGMII) ||
-		   (priv->plat->interface == PHY_INTERFACE_MODE_10GKR)) {
+		   (priv->plat->interface == PHY_INTERFACE_MODE_10GKR)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 6, 0) /* TC956X_Host_Driver-industrial_limited_tested_20241025_V_04-00-01-QPSSW-216.patch */
+			|| (priv->plat->interface == PHY_INTERFACE_MODE_10GBASER)
+#endif
+			) {
 			if (reg_value & XGMAC_USXG_AN_STS_LINK_MASK) {/*check link status*/
 				state->link = 1;
 				KPRINT_INFO("XPCS USXGMII link up");
@@ -3571,7 +3582,11 @@ static void tc956xmac_mac_an_restart(struct phylink_config *config)
 	if (priv->hw->xpcs) {
 		/*Enable XPCS Autoneg*/
 		if ((priv->plat->interface == PHY_INTERFACE_MODE_10GKR) ||
-			(priv->port_interface == ENABLE_2500BASE_X_INTERFACE)) {
+			(priv->port_interface == ENABLE_2500BASE_X_INTERFACE)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 6, 0) /* TC956X_Host_Driver-industrial_limited_tested_20241025_V_04-00-01-QPSSW-216.patch */
+			|| (priv->plat->interface == PHY_INTERFACE_MODE_10GBASER)
+#endif
+			) {
 			enable_en = false;
 			KPRINT_INFO("%s :Port %d %s AN Enable:%d", __func__, priv->port_num, priv->dev->name, enable_en);
 		} else if (priv->plat->interface == PHY_INTERFACE_MODE_SGMII) {
@@ -4213,7 +4228,11 @@ static void tc956xmac_check_pcs_mode(struct tc956xmac_priv *priv)
 			priv->hw->pcs = TC956XMAC_PCS_SGMII;
 #endif
 		} else if ((interface == PHY_INTERFACE_MODE_USXGMII) ||
-			  (interface == PHY_INTERFACE_MODE_10GKR)) {
+			  (interface == PHY_INTERFACE_MODE_10GKR)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 6, 0) /* TC956X_Host_Driver-industrial_limited_tested_20241025_V_04-00-01-QPSSW-216.patch */
+			  || (interface == PHY_INTERFACE_MODE_10GBASER)
+#endif
+			  ) {
 			netdev_dbg(priv->dev, "PCS USXGMII/XFI support enabled\n");
 #ifdef TC956X
 			priv->hw->pcs = TC956XMAC_PCS_USXGMII;
@@ -4229,7 +4248,11 @@ static void tc956xmac_check_pcs_mode(struct tc956xmac_priv *priv)
 		netdev_dbg(priv->dev, "PCS SGMII support enabled\n");
 		priv->hw->xpcs = TC956XMAC_PCS_SGMII;
 	} else if ((interface == PHY_INTERFACE_MODE_USXGMII) ||
-		  (interface == PHY_INTERFACE_MODE_10GKR)) {
+		  (interface == PHY_INTERFACE_MODE_10GKR)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 6, 0) /* TC956X_Host_Driver-industrial_limited_tested_20241025_V_04-00-01-QPSSW-216.patch */
+		  || (interface == PHY_INTERFACE_MODE_10GBASER)
+#endif
+		  ) {
 		netdev_dbg(priv->dev, "PCS USXGMII support enabled\n");
 		priv->hw->xpcs = TC956XMAC_PCS_USXGMII;
 	}
@@ -6910,7 +6933,11 @@ static int tc956xmac_hw_setup(struct net_device *dev, bool init_ptp)
 	if (priv->hw->xpcs) {
 		/*C37 AN enable*/
 		if ((priv->plat->interface == PHY_INTERFACE_MODE_10GKR) ||
-			(priv->port_interface == ENABLE_2500BASE_X_INTERFACE))
+			(priv->port_interface == ENABLE_2500BASE_X_INTERFACE)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 6, 0) /* TC956X_Host_Driver-industrial_limited_tested_20241025_V_04-00-01-QPSSW-216.patch */
+			|| (priv->plat->interface == PHY_INTERFACE_MODE_10GBASER)
+#endif
+			)
 			enable_en = false;
 		else if (priv->plat->interface == PHY_INTERFACE_MODE_SGMII) {
 			if (priv->is_sgmii_2p5g == true)
@@ -7106,7 +7133,6 @@ static int tc956xmac_open(struct net_device *dev)
 #ifndef TC956X_SRIOV_VF
 	struct phy_device *phydev = NULL;
 	int addr = priv->plat->phy_addr;
-	char wol_dev_name[15];
 
 	KPRINT_INFO("---> light weight = %d %s : Port %d interface %s", priv->link_down_rst, __func__, priv->port_num, dev->name);
 #ifndef TC956X_WITHOUT_MDIO_WITHOUT_PHY
@@ -7385,9 +7411,8 @@ static int tc956xmac_open(struct net_device *dev)
 		if (priv->tc956x_port_pm_suspend == false) {
 			/* Request the Wake IRQ in case of another line is used for WoL */
 			if (priv->wol_irq != dev->irq) {
-				snprintf(wol_dev_name, sizeof(wol_dev_name), "%s_wol", dev->name);
 				ret = request_irq(priv->wol_irq, tc956xmac_wol_interrupt,
-						  IRQF_NO_SUSPEND, wol_dev_name, dev);
+						  IRQF_NO_SUSPEND, WOL_IRQ_DEV_NAME(priv->port_num), dev);
 				if (unlikely(ret < 0)) {
 					netdev_err(priv->dev,
 						   "%s: ERROR: allocating the WoL IRQ %d (%d)\n",
@@ -14853,6 +14878,57 @@ static void extract_macid(char *string, uint8_t vf_id)
 }
 
 /*!
+ * \brief API to extract MAC ID from given string
+ *
+ * \param[in] char *string - pointer to MAC ID string
+ *
+ * \return None
+ */
+static void extract_macid_eeprom(char *string, uint8_t vf_id)
+{
+	char *token_m = NULL;
+	int j = 0;
+	int mac_id = 0;
+
+#ifdef TC956X_SRIOV_PF
+	static int addr_found_eeprom;
+
+	/* Extract MAC ID byte by byte */
+	token_m = strsep(&string, ":");
+
+	while (token_m != NULL) {
+		sscanf(token_m, "%x", &mac_id);
+		if (addr_found_eeprom < TC956X_MAC_ADDR_CNT) {
+			dev_addr[addr_found_eeprom][j++] = mac_id;
+			token_m = strsep(&string, ":");
+		} else
+			break;
+	}
+	KPRINT_DEBUG1("MAC Addr : %pM\n", &dev_addr[addr_found_eeprom][0]);
+#elif defined TC956X_SRIOV_VF
+	static int k;
+	int addr_found_eeprom = 0;
+
+	/* Extract MAC ID byte by byte */
+	token_m = strsep(&string, ":");
+
+	while (token_m != NULL) {
+		sscanf(token_m, "%x", &mac_id);
+
+		if (addr_found_eeprom < 2) {
+			dev_addr[k][addr_found_eeprom + vf_id][j++] = mac_id;
+			token_m = strsep(&string, ":");
+		} else
+			break;
+	}
+	KPRINT_INFO("MAC Addr : %pM\n", &dev_addr[k][addr_found_eeprom + vf_id][0]);
+
+	k++;
+#endif
+	addr_found_eeprom++;
+}
+
+/*!
  * \brief API to parse and extract the user configured MAC ID
  *
  * \param[in] file_buf - Pointer to file data buffer
@@ -14861,7 +14937,7 @@ static void extract_macid(char *string, uint8_t vf_id)
  *
  * \return - True on Success and False in failure
  */
-static bool lookfor_macid(char *file_buf, uint8_t port_id, uint8_t dev_id)
+static bool lookfor_macid(char *file_buf, uint8_t port_id, uint8_t dev_id, MacSrcType_t mac_src)
 {
 	char *string = NULL, *token_n = NULL, *token_s = NULL, *token_m = NULL;
 	char *dev_no = NULL, *port_no = NULL;
@@ -14930,7 +15006,11 @@ static bool lookfor_macid(char *file_buf, uint8_t port_id, uint8_t dev_id)
 							 * MAC ID is valid,
 							 * assign default MAC ID
 							 */
-							extract_macid(token_s, dev_id);
+							if (mac_src == MAC_SRC_CONFIG_FILE) {
+								extract_macid(token_s, dev_id);
+							} else {
+								extract_macid_eeprom(token_s, dev_id);
+							}
 							total_valid_addr++;
 
 							if (total_valid_addr > 1)
@@ -14997,7 +15077,7 @@ static int qps615_eeprom_readmac(uint8_t port_id, uint8_t dev_id)
 				if (strncmp(config_param_list[i].mdio_key, "MDIOBUSID", 9) == 0) {
 					/* MAC ID Configuration */
 					KPRINT_ERR("MAC_ID EEPROM Configuration\n");
-					lookfor_macid(rd_data, port_id, dev_id);
+					lookfor_macid(rd_data, port_id, dev_id, MAC_SRC_PLATFORM_EEPROM);
 				}
 			} else {
 				KPRINT_ERR("Pattern NOT Match\n");
@@ -15015,7 +15095,7 @@ static int qps615_eeprom_readmac(uint8_t port_id, uint8_t dev_id)
  * \return None
  *
  */
-static void parse_config_file(uint8_t port_id, uint8_t dev_id)
+static void parse_config_file(uint8_t port_id, uint8_t dev_id, struct net_device *dev)
 {
 	void *data = NULL;
 	char *cdata;
@@ -15031,6 +15111,7 @@ static void parse_config_file(uint8_t port_id, uint8_t dev_id)
 	if (ret < 0) {
 		KPRINT_ERR("Mac configuration file not found\n");
 		eth_random_addr(&dev_addr[tc956xmac_pm_usage_counter][0]);
+		dev->addr_assign_type = NET_ADDR_RANDOM;
 		KPRINT_INFO("tc956xmac_pm_usage_counter=%d\n",tc956xmac_pm_usage_counter);
 		return;
 	} else {
@@ -15043,7 +15124,7 @@ static void parse_config_file(uint8_t port_id, uint8_t dev_id)
 				if (strncmp(config_param_list[i].mdio_key, "MDIOBUSID", 9) == 0) {
 					/* MAC ID Configuration */
 					KPRINT_DEBUG1("MAC_ID Configuration\n");
-					lookfor_macid(data, port_id, dev_id);
+					lookfor_macid(data, port_id, dev_id, MAC_SRC_CONFIG_FILE);
 				}
 			}
 		}
@@ -15414,13 +15495,13 @@ int tc956xmac_vf_dvr_probe(struct device *device,
 #else
 #ifdef TC956X_SRIOV_VF
 	/* To be enabled for config.ini parsing */
-	parse_config_file(priv->port_num, priv->plat->vf_id);
+	parse_config_file(priv->port_num, priv->plat->vf_id, priv->dev);
 #else
 	/* To be enabled for config.ini parsing */
-	parse_config_file(priv->port_num, 0);
-#endif
+	parse_config_file(priv->port_num, 0, priv->dev);
 	/* To be enabled for EEPROM MAC parsing */
 	qps615_eeprom_readmac(priv->port_num, 0);
+#endif
 
 #endif /* EEPROM_MAC_ADDR */
 #ifndef TC956X_SRIOV_VF
@@ -16474,7 +16555,11 @@ void tc956xmac_link_change_set_power(struct tc956xmac_priv *priv, enum TC956X_PO
 
 			/*C37 AN enable*/
 			if ((priv->plat->interface == PHY_INTERFACE_MODE_10GKR) ||
-				(priv->port_interface == ENABLE_2500BASE_X_INTERFACE))
+				(priv->port_interface == ENABLE_2500BASE_X_INTERFACE)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 6, 0) /* TC956X_Host_Driver-industrial_limited_tested_20241025_V_04-00-01-QPSSW-216.patch */
+				|| (priv->plat->interface == PHY_INTERFACE_MODE_10GBASER)
+#endif
+				)
 				enable_en = false;
 			else if (priv->plat->interface == PHY_INTERFACE_MODE_SGMII) {
 				if (priv->is_sgmii_2p5g == true)
