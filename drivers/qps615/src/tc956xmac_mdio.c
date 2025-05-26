@@ -4,7 +4,7 @@
  * tc956xmac_mdio.c
  *
  * Copyright (C) 2007-2009  STMicroelectronics Ltd
- * Copyright (C) 2024 Toshiba Electronic Devices & Storage Corporation
+ * Copyright (C) 2025 Toshiba Electronic Devices & Storage Corporation
  *
  * This file has been derived from the STMicro Linux driver,
  * and developed or modified for TC956X.
@@ -51,6 +51,8 @@
  *  13 Feb 2024 : 1. Merged CPE and Automotive package
  *                2. Updated with Register Configuration Check.
  *  VERSION     : 04-00
+ *  11 Dec 2024 : 1. Driver modification to disable phydev private flag access.
+ *  VERSION     : 04-00-03
  */
 
 #include <linux/gpio/consumer.h>
@@ -335,7 +337,6 @@ static int __tc956xmac_xgmac2_mdio_write(struct mii_bus *bus, int phyaddr,
 	writel(value, priv->ioaddr + mii_data);
 
 	/*Preamble support*/
-	/* TC956X_Host_Driver-industrial_limited_tested_20241030_V_04-00-01-QPSSW-215.patch */
 #ifdef TC956X_SAMP_PHY_AQR_DRV_PSE_ENABLED
 	if ((priv->dev->phydev) && (priv->dev->phydev->priv != NULL)) {
 		if (*((int *)priv->dev->phydev->priv) == 1)
@@ -662,7 +663,6 @@ int tc956xmac_mdio_register(struct net_device *ndev)
 
 	snprintf(new_bus->id, MII_BUS_ID_SIZE, "%s-%x",
 		 new_bus->name, priv->plat->bus_id);
-
 	new_bus->priv = ndev;
 	new_bus->phy_mask = mdio_bus_data->phy_mask;
 	new_bus->parent = priv->device;
