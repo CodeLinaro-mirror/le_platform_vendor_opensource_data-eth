@@ -970,8 +970,8 @@ static void qcom_ethqos_remove(struct platform_device *pdev)
 		return;
 
 	ETHQOSINFO("Enter\n");
-	unregister_netdevice_notifier(&netdev_notifier);
 	send_with_retry(vlan);
+	unregister_netdevice_notifier(&netdev_notifier);
 	client_sk.poll_active = 0;
 	kthread_cancel_work_sync(&client_sk.poll_work);
 	kthread_flush_work(&client_sk.poll_work);
